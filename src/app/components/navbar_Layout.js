@@ -3,7 +3,7 @@
 import { Disclosure, DisclosureButton, DisclosurePanel, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { Bars3Icon, BellIcon, XMarkIcon } from '@heroicons/react/24/outline'
 
-const isAuthenticated = true;
+const isAuthenticated = false;
 
 const navigation = [
   { name: 'Inicio', href: '/', current: true },
