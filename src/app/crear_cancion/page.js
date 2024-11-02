@@ -18,7 +18,8 @@ export default function Page() {
                 console.log('Player detenido.');
             }
         });
-
+        
+        //rnnPlayer.setTempo(70); // Asegura que el player también usa el tempo deseado
         const playBtn = document.getElementById('play');
         const stopBtn = document.getElementById('stop');
 
@@ -36,7 +37,6 @@ export default function Page() {
 
         const playClick = async () => {
             try {
-                // Espera a que `getRandomNoteSequence()` retorne el `NoteSequence`
                 const randomDrumSeed = await getRandomNoteSequence();
                 
                 if (!randomDrumSeed) {
@@ -44,34 +44,15 @@ export default function Page() {
                     return;
                 }
         
-                // Cuantizar el NoteSequence
+
                 const quantizedSequence = mm.sequences.quantizeNoteSequence(randomDrumSeed, 4);
-                //console.log("Quantized Sequence:", quantizedSequence);
-        
-                // Define totalQuantizedSteps en caso de que no esté definido
                 quantizedSequence.totalQuantizedSteps = quantizedSequence.totalQuantizedSteps || quantizedSequence.notes[quantizedSequence.notes.length - 1].quantizedEndStep;
-        
-                // Visualizar la secuencia cuantizada
-                //setupVisualizer(quantizedSequence);
-        
+                quantizedSequence.tempos = [{ time: 0, qpm: 70 }];
                 // Iniciar AudioContext y continuar la secuencia con el modelo de drums
                 await mm.Player.tone.start();
                 
-                const sample = await drums_rnn.continueSequence(quantizedSequence, 32, 1);
-        
-                //const offset = quantizedSequence.totalQuantizedSteps;
-                //sample.notes.forEach(note => {
-                //    note.quantizedStartStep += offset;
-                //    note.quantizedEndStep += offset;
-                //});
-        
-                // Combina `quantizedSequence` con `sample` en `combinedSequence`
-                //const combinedSequence = {
-                 //   ...quantizedSequence,
-                 //   notes: [...quantizedSequence.notes, ...sample.notes],
-                 //   totalQuantizedSteps: quantizedSequence.totalQuantizedSteps + sample.totalQuantizedSteps,
-                //};
-        
+                const sample = await drums_rnn.continueSequence(quantizedSequence, 64, 1);
+                sample.tempos = [{ time: 0, qpm: 70 }];
                 setupVisualizer(sample);
                 rnnPlayer.start(sample);
         
