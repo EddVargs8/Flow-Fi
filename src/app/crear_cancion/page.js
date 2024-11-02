@@ -2,14 +2,13 @@
 "use client";
 
 import { useEffect } from 'react';
-import { seeds } from '../seeds';
+import { getRandomNoteSequence } from '../MIDI conversion/conversion';
 
 export default function Page() {
     useEffect(() => {
         let viz = null; 
         const drums_rnn = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn');
         drums_rnn.initialize();
-        
 
         const rnnPlayer = new mm.Player(false, {
             run: (note) => { 
@@ -23,11 +22,6 @@ export default function Page() {
         const playBtn = document.getElementById('play');
         const stopBtn = document.getElementById('stop');
 
-        function getRandomSeed(seedsArray) {
-            const randomIndex = Math.floor(Math.random() * seedsArray.length);
-            return seedsArray[randomIndex];
-        }
-
         function setupVisualizer(sequence) {
             const config = {
                 noteHeight: 10,
@@ -40,56 +34,53 @@ export default function Page() {
             viz = new mm.PianoRollCanvasVisualizer(sequence, document.getElementById('canvas'), config);
         }
 
-        const playClick = () => {
-            
-            const randomDrumSeed = getRandomSeed(seeds.drumsSeeds);
-            console.log('Secuencia aleatoria:', randomDrumSeed.id);
-            setupVisualizer(randomDrumSeed);
-
-
-
-            if (mm.Player.tone.state === 'started') {
-                console.log('La secuencia ya está en reproducción. Deteniendo...');
-                rnnPlayer.stop().then(() => {
-                    mm.Player.tone.stop(); // Detenemos el tono también
-                    console.log('Secuencia detenida.');
-                });
-                return; // Salimos para no iniciar de nuevo
+        const playClick = async () => {
+            try {
+                // Espera a que `getRandomNoteSequence()` retorne el `NoteSequence`
+                const randomDrumSeed = await getRandomNoteSequence();
+                
+                if (!randomDrumSeed) {
+                    console.error("No se pudo cargar el NoteSequence.");
+                    return;
+                }
+        
+                // Cuantizar el NoteSequence
+                const quantizedSequence = mm.sequences.quantizeNoteSequence(randomDrumSeed, 4);
+                //console.log("Quantized Sequence:", quantizedSequence);
+        
+                // Define totalQuantizedSteps en caso de que no esté definido
+                quantizedSequence.totalQuantizedSteps = quantizedSequence.totalQuantizedSteps || quantizedSequence.notes[quantizedSequence.notes.length - 1].quantizedEndStep;
+        
+                // Visualizar la secuencia cuantizada
+                //setupVisualizer(quantizedSequence);
+        
+                // Iniciar AudioContext y continuar la secuencia con el modelo de drums
+                await mm.Player.tone.start();
+                
+                const sample = await drums_rnn.continueSequence(quantizedSequence, 32, 1);
+        
+                //const offset = quantizedSequence.totalQuantizedSteps;
+                //sample.notes.forEach(note => {
+                //    note.quantizedStartStep += offset;
+                //    note.quantizedEndStep += offset;
+                //});
+        
+                // Combina `quantizedSequence` con `sample` en `combinedSequence`
+                //const combinedSequence = {
+                 //   ...quantizedSequence,
+                 //   notes: [...quantizedSequence.notes, ...sample.notes],
+                 //   totalQuantizedSteps: quantizedSequence.totalQuantizedSteps + sample.totalQuantizedSteps,
+                //};
+        
+                setupVisualizer(sample);
+                rnnPlayer.start(sample);
+        
+            } catch (error) {
+                console.error('Error en playClick:', error);
             }
-
-            // Iniciar AudioContext
-            mm.Player.tone.start().then(() => {
-                console.log('AudioContext iniciado');
-                drums_rnn.continueSequence(randomDrumSeed, 24, 0.8)
-                    .then((sample) => {
-                        console.log('Iniciando nueva secuencia.');
-
-                        const offset = randomDrumSeed.totalQuantizedSteps;
-                            sample.notes.forEach(note => {
-                            note.quantizedStartStep += offset;
-                            note.quantizedEndStep += offset;
-                        });
-
-                        // Combina `randomDrumSeed` con `sample` en `combinedSequence`
-                        const combinedSequence = {
-                            ...randomDrumSeed,
-                            notes: [...randomDrumSeed.notes, ...sample.notes],
-                            totalQuantizedSteps: randomDrumSeed.totalQuantizedSteps + sample.totalQuantizedSteps,
-                        };
-                        setupVisualizer(combinedSequence);
-                        rnnPlayer.start(combinedSequence);
-                        
-                    })
-                    .catch((error) => {
-                        console.error('Error al reproducir la secuencia:', error);
-                    });
-            }).catch((error) => {
-                console.error('Error al iniciar AudioContext:', error);
-            });
-
-
-
         };
+        
+        
         
         const stopClick = () => {
             if (rnnPlayer.isPlaying()) {
@@ -98,8 +89,6 @@ export default function Page() {
                 console.log('No hay secuencia en reproducción.');
             }
         };
-        
-        
 
         if (playBtn) 
             playBtn.addEventListener('click', playClick);

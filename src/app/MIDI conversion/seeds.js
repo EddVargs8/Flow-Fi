@@ -6,11 +6,11 @@ export const seeds = {
         totalQuantizedSteps: 8,
         quantizationInfo: { stepsPerQuarter: 4 },
         notes: [
-          { pitch: 36, quantizedStartStep: 0, quantizedEndStep: 1 },
-          { pitch: 42, quantizedStartStep: 1, quantizedEndStep: 2 },
-          { pitch: 36, quantizedStartStep: 4, quantizedEndStep: 5 },
-          { pitch: 42, quantizedStartStep: 5, quantizedEndStep: 6 },
-          { pitch: 42, quantizedStartStep: 7, quantizedEndStep: 8 }
+          { pitch: 30, quantizedStartStep: 0, quantizedEndStep: 1 },
+          { pitch: 40, quantizedStartStep: 1, quantizedEndStep: 2 },
+          { pitch: 30, quantizedStartStep: 4, quantizedEndStep: 5 },
+          { pitch: 40, quantizedStartStep: 5, quantizedEndStep: 6 },
+          { pitch: 40, quantizedStartStep: 7, quantizedEndStep: 8 }
         ]
       },
       { 
