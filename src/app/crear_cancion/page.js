@@ -2,8 +2,6 @@
 "use client";
 
 import { useEffect } from 'react';
-import { getRandomNoteSequence } from '../MIDI conversion/conversion';
-
 
 export default function Page() {
     useEffect(() => { 
@@ -17,14 +15,16 @@ export default function Page() {
 
         let viz = null;
         const playBtn = document.getElementById('playBtn');
+        const recordBtn = document.getElementById('recordBtn');
         const drumsViz = document.getElementById('drumsCanvas');
         const pianoViz = document.getElementById('pianoCanvas');
         const bassViz = document.getElementById('bassCanvas');
-        const qpm = 80;  
+        const qpm = 70;  
         const secondsPerStep = 60 / (qpm * 4);  
-        const steps = 64;
-        const temperature = 1;
-        
+        const steps = 48;
+        const temperature = 1.5;
+        let songDuration = 0; 
+
         function setupVisualizer(sequence, canvas) {
             const config = {
                 noteHeight: 10,
@@ -33,7 +33,6 @@ export default function Page() {
                 noteRGB: '194, 24, 7',
                 activeNoteRGB: '87, 35, 100',
             };
-    
             viz = new mm.PianoRollCanvasVisualizer(sequence, canvas, config);
         }
 
@@ -51,11 +50,46 @@ export default function Page() {
                 quantizedEndStep: note.quantizedEndStep,
                 quantizedStartStep: note.quantizedStartStep
             })));
-        
             part.start(0); // Todas las partes se iniciarán en el tiempo 0
             return part;
         }
         
+
+        let mediaRecorder;
+        let audioChunks = [];
+        
+        const startRecording = async () => {
+            await Tone.loaded();
+            await Tone.start();
+            const destination = Tone.Destination.context.createMediaStreamDestination();
+            Tone.Destination.connect(destination);
+            mediaRecorder = new MediaRecorder(destination.stream);
+            mediaRecorder.start();
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = audioUrl;
+                const uniqueId = Date.now();
+                downloadLink.download = `generated_song_${uniqueId}.wav`;
+                downloadLink.style.display = 'none';
+                document.body.appendChild(downloadLink);    
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                audioChunks = []; // Limpiar los datos de audio después de la descarga
+            };
+
+            Tone.Transport.scheduleOnce(() => {
+                Tone.Transport.stop();
+            }, `+${songDuration}`);
+            Tone.Transport.start(); 
+        }
+
         const synth = new Tone.Sampler({
             urls: {
                 "A0": "A0.ogg",
@@ -139,36 +173,16 @@ export default function Page() {
             }
           }).toDestination();
 
-        async function getQuantizedNote() {
-            const randomSeed = await getRandomNoteSequence();
-            if (!randomSeed) {
-                console.error("No se pudo cargar el NoteSequence.");
-                 return;
-            }
-            const quantizedSequence = mm.sequences.quantizeNoteSequence(randomSeed, 4);
-            quantizedSequence.totalQuantizedSteps = quantizedSequence.totalQuantizedSteps || quantizedSequence.notes[quantizedSequence.notes.length - 1].quantizedEndStep;
-            quantizedSequence.tempos = [{ time: 0, qpm: 90 }];
-            const minPitch = 60;  // C4
-            const maxPitch = 72;  // C5
-            quantizedSequence.notes.forEach(note => {
-                // Ajusta el pitch de cada nota al rango deseado
-                if (note.pitch < minPitch) {
-                    note.pitch = minPitch; 
-                } else if (note.pitch > maxPitch) {
-                    note.pitch = maxPitch;  
-                }
-            });
-            return quantizedSequence;
-        }
+        
+        Tone.Transport.on("stop", () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        });
 
         const playSong = async () => {
             await Tone.loaded(); 
             try {
-                Tone.Transport.stop();
-                Tone.Transport.cancel();
                 await Tone.start();
 
-                //const quantizedSequence = await getQuantizedNote();
                 const chordProgression = ['Am7', 'D9', 'Gmaj7', 'Cmaj7'];
                 const pianoSequence = await melodyRNN.continueSequence(
                     {
@@ -185,7 +199,7 @@ export default function Page() {
                       }
                                             
                     ,steps, temperature, chordProgression);
-                //setupVisualizer(pianoSequence, pianoViz);
+                setupVisualizer(pianoSequence, pianoViz);
                 console.log('pianoSequence:', pianoSequence);
                 const drumsSequence = await drums_rnn.continueSequence(
                     {
@@ -205,7 +219,7 @@ export default function Page() {
                         "tempos": [{"time": 0, "qpm": 80}]
                       }      
                     , steps, temperature);
-                //setupVisualizer(drumsSequence, drumsViz);
+                setupVisualizer(drumsSequence, drumsViz);
                 console.log('drumsSequence:', drumsSequence);
                 const bassSequence = await bassRNN.continueSequence(
                     {
@@ -222,7 +236,7 @@ export default function Page() {
                       }
                       
                     , steps, temperature, chordProgression);
-                //setupVisualizer(bassSequence, bassViz);
+                setupVisualizer(bassSequence, bassViz);
                 console.log('bassSequence:', bassSequence);
 
                 if (Tone.Transport.parts) {
@@ -233,9 +247,15 @@ export default function Page() {
                 const drumPart = planificarSecuencia(drumKit, drumsSequence, secondsPerStep);
                 const pianoPart = planificarSecuencia(synth, pianoSequence, secondsPerStep);
                 const bassPart = planificarSecuencia(bassSynth, bassSequence, secondsPerStep);
-
                 Tone.Transport.parts = [drumPart, pianoPart, bassPart];
                 Tone.Transport.bpm.value = 60;
+                // Calcular la duración total de la canción en segundos
+                const totalSteps = drumsSequence.totalQuantizedSteps; // Todas las secuencias tienen los mismos pasos
+                songDuration = totalSteps * secondsPerStep;
+
+                Tone.Transport.scheduleOnce(() => {
+                    Tone.Transport.stop();
+                }, `+${songDuration}`);
                 Tone.Transport.start();
             } catch (error) {
                 console.error('Error en playSong:', error);
@@ -245,11 +265,14 @@ export default function Page() {
 
         if (playBtn) 
             playBtn.addEventListener('click', playSong);
-
+        if (recordBtn) 
+            recordBtn.addEventListener('click', startRecording);
         // Limpieza para evitar duplicados
         return () => {
             if (playBtn)
                 playBtn.removeEventListener('click', playSong);
+            if (recordBtn)
+                recordBtn.removeEventListener('click', startRecording);
             Tone.Transport.stop();
             Tone.Transport.cancel();
         };
@@ -286,12 +309,12 @@ export default function Page() {
             </div>
         
             
-            
             <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.23.1"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
             </div>
 
             <button id='playBtn' className="mt-6 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"> Generar canción </button>
+            <button id='recordBtn' className="mt-6 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"> Grabar canción </button>
         
         </div>
         

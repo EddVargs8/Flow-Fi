@@ -18,7 +18,7 @@ function classNames(...classes) {
 export default function MainLayout({ children }) {  
   return (
     <>
-      <Disclosure as="nav" className="bg-gray-800">
+      <Disclosure as="nav" className="bg-[#023C3C]">
         <div className="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8">
           <div className="relative flex h-16 items-center justify-between">
             <div className="flex flex-1 items-center justify-center sm:items-stretch sm:justify-start">
@@ -37,7 +37,7 @@ export default function MainLayout({ children }) {
                       href={item.href}
                       aria-current={item.current ? 'page' : undefined}
                       className={classNames(
-                        item.current ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+                        item.current ? 'bg-[#02514E] text-white' : 'text-gray-200 hover:bg-[#02514E] hover:text-white',
                         'rounded-md px-3 py-2 text-sm font-medium',
                       )}
                     >
@@ -47,19 +47,17 @@ export default function MainLayout({ children }) {
                 </div>
               </div>
             </div>
-            
 
             {!isAuthenticated ? (
-                <>
-                  <a href="/login" className="text-white bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-purple-300 dark:focus:ring-purple-800 shadow-lg shadow-purple-500/50 dark:shadow-lg dark:shadow-purple-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Iniciar Sesion</a>
-                  <a href="/signup" className="text-white bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-purple-300 dark:focus:ring-purple-800 shadow-lg shadow-purple-500/50 dark:shadow-lg dark:shadow-purple-800/80 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Registrarse</a>
-                </>
-              ) : (
-                // Si está autenticado, mostrar opciones de usuario
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+              <>
+                <a href="/login" className="text-white bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-400 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Iniciar Sesion</a>
+                <a href="/signup" className="text-white bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-teal-400 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2">Registrarse</a>
+              </>
+            ) : (
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                 <Menu as="div" className="relative ml-3">
                   <div>
-                    <MenuButton className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                    <MenuButton className="relative flex rounded-full bg-[#023C3C] text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#023C3C]">
                       <span className="absolute -inset-1.5" />
                       <span className="sr-only">Open user menu</span>
                       <img
@@ -71,20 +69,20 @@ export default function MainLayout({ children }) {
                   </div>
                   <MenuItems
                     transition
-                    className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[leave]:duration-75 data-[enter]:ease-out data-[leave]:ease-in"
+                    className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none"
                   >
                     <MenuItem>
-                      <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100">
+                      <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         Your Profile
                       </a>
                     </MenuItem>
                     <MenuItem>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100">
+                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         Settings
                       </a>
                     </MenuItem>
                     <MenuItem>
-                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 data-[focus]:bg-gray-100">
+                      <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         Sign out
                       </a>
                     </MenuItem>
@@ -92,8 +90,6 @@ export default function MainLayout({ children }) {
                 </Menu>
               </div>
             )}
-
-            
           </div>
         </div>  
 
@@ -106,7 +102,7 @@ export default function MainLayout({ children }) {
                 href={item.href}
                 aria-current={item.current ? 'page' : undefined}
                 className={classNames(
-                  item.current ? 'bg-gray-900 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+                  item.current ? 'bg-[#02514E] text-white' : 'text-gray-200 hover:bg-[#02514E] hover:text-white',
                   'block rounded-md px-3 py-2 text-base font-medium',
                 )}
               >
