@@ -1,9 +1,11 @@
 // Crear cancion page
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function Page() {
+    const canvasRef = useRef(null); 
+
     useEffect(() => { 
         const drums_rnn = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn');
         const melodyRNN = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv');
@@ -13,29 +15,19 @@ export default function Page() {
         melodyRNN.initialize();
         bassRNN.initialize();
 
-        let viz = null;
         const playBtn = document.getElementById('playBtn');
         const recordBtn = document.getElementById('recordBtn');
-        const drumsViz = document.getElementById('drumsCanvas');
-        const pianoViz = document.getElementById('pianoCanvas');
-        const bassViz = document.getElementById('bassCanvas');
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        canvas.width = 400;  // Ajusta según tus necesidades
+        canvas.height = 200; // Ajusta según tus necesidades
+        let animationFrameId;
+
         const qpm = 70;  
         const secondsPerStep = 60 / (qpm * 4);  
         const steps = 48;
         const temperature = 1.5;
         let songDuration = 0; 
-
-        function setupVisualizer(sequence, canvas) {
-            const config = {
-                noteHeight: 10,
-                pixelsPerTimeStep: 200,  // like a note width
-                noteSpacing: 2,
-                noteRGB: '194, 24, 7',
-                activeNoteRGB: '87, 35, 100',
-            };
-            viz = new mm.PianoRollCanvasVisualizer(sequence, canvas, config);
-        }
-
 
         function planificarSecuencia(instrument, sequence, secondsPerStep) {
             const part = new Tone.Part((time, note) => {
@@ -173,11 +165,45 @@ export default function Page() {
             }
           }).toDestination();
 
-        
+        // Crear un Analyser y conectarlo al destino de audio
+        const analyser = new Tone.Analyser('fft', 256); // Puedes ajustar 'fft' o 'waveform' y el tamaño
+        Tone.Destination.connect(analyser);
+
         Tone.Transport.on("stop", () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
         });
 
+
+        function drawVisualizer() {
+            // Solicita el siguiente frame de animación
+            animationFrameId = requestAnimationFrame(drawVisualizer);
+        
+            // Obtener los datos de frecuencia del Analyser
+            const bufferLength = analyser.size;
+            const dataArray = analyser.getValue();
+        
+            // Limpiar el canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+            // Configurar parámetros de dibujo
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+        
+            // Recorrer los datos y dibujar las barras
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] + 140) * 2;
+        
+                ctx.fillStyle = `rgb(${Math.floor(barHeight + 100)}, 50, 50)`;
+                ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+        
+                x += barWidth + 1;
+            }
+        }
+        
         const playSong = async () => {
             await Tone.loaded(); 
             try {
@@ -199,7 +225,6 @@ export default function Page() {
                       }
                                             
                     ,steps, temperature, chordProgression);
-                setupVisualizer(pianoSequence, pianoViz);
                 console.log('pianoSequence:', pianoSequence);
                 const drumsSequence = await drums_rnn.continueSequence(
                     {
@@ -219,7 +244,6 @@ export default function Page() {
                         "tempos": [{"time": 0, "qpm": 80}]
                       }      
                     , steps, temperature);
-                setupVisualizer(drumsSequence, drumsViz);
                 console.log('drumsSequence:', drumsSequence);
                 const bassSequence = await bassRNN.continueSequence(
                     {
@@ -236,7 +260,6 @@ export default function Page() {
                       }
                       
                     , steps, temperature, chordProgression);
-                setupVisualizer(bassSequence, bassViz);
                 console.log('bassSequence:', bassSequence);
 
                 if (Tone.Transport.parts) {
@@ -256,6 +279,7 @@ export default function Page() {
                 Tone.Transport.scheduleOnce(() => {
                     Tone.Transport.stop();
                 }, `+${songDuration}`);
+                drawVisualizer();
                 Tone.Transport.start();
             } catch (error) {
                 console.error('Error en playSong:', error);
@@ -275,6 +299,9 @@ export default function Page() {
                 recordBtn.removeEventListener('click', startRecording);
             Tone.Transport.stop();
             Tone.Transport.cancel();
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
         };
 
 
@@ -284,27 +311,10 @@ export default function Page() {
         <div className='block text-center'>
 
             <div className="flex flex-col p-4">
-            {/* Fila para Drums */}
+            
             <div className="flex items-center w-full max-w-md my-2">
-                <span className="text-green-600 font-semibold w-20">Drums</span>
                 <div className="ml-2">
-                <canvas id="drumsCanvas" className="bg-gray-200 rounded-md h-32 w-64"></canvas>
-                </div>
-            </div>
-        
-            {/* Fila para Piano */}
-            <div className="flex items-center w-full max-w-md my-2">
-                <span className="text-green-600 font-semibold w-20">Piano</span>
-                <div className="ml-2">
-                <canvas id="pianoCanvas" className="bg-gray-200 rounded-md h-32 w-64"></canvas>
-                </div>
-            </div>
-        
-            {/* Fila para Bass */}
-            <div className="flex items-center w-full max-w-md my-2">
-                <span className="text-green-600 font-semibold w-20">Bass</span>
-                <div className="ml-2">
-                <canvas id="bassCanvas" className="bg-gray-200 rounded-md h-32 w-64"></canvas>
+                <canvas ref={canvasRef} className="bg-gray-200 rounded-md h-32 w-64"></canvas>
                 </div>
             </div>
         
