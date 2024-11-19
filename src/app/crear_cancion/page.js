@@ -19,16 +19,13 @@ export default function Page() {
         const recordBtn = document.getElementById('recordBtn');
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        canvas.width = 400;  // Ajusta según tus necesidades
-        canvas.height = 200; // Ajusta según tus necesidades
-        let animationFrameId;
-
-        const qpm = 70;  
-        const secondsPerStep = 60 / (qpm * 4);  
-        const steps = 48;
-        const temperature = 1.5;
-        let songDuration = 0; 
-
+        let duration; 
+        let steps;
+        let qpm = 65; 
+        let temperature;
+        let animationFrameId; 
+        const secondsPerStep = 60 / (qpm * 4); 
+        
         function planificarSecuencia(instrument, sequence, secondsPerStep) {
             const part = new Tone.Part((time, note) => {
                 instrument.triggerAttackRelease(
@@ -51,6 +48,7 @@ export default function Page() {
         let audioChunks = [];
         
         const startRecording = async () => {
+            console.log(qpm, steps, temperature, duration);
             await Tone.loaded();
             await Tone.start();
             const destination = Tone.Destination.context.createMediaStreamDestination();
@@ -78,7 +76,8 @@ export default function Page() {
 
             Tone.Transport.scheduleOnce(() => {
                 Tone.Transport.stop();
-            }, `+${songDuration}`);
+            }, `+${duration}`);
+            drawVisualizer();
             Tone.Transport.start(); 
         }
 
@@ -165,8 +164,8 @@ export default function Page() {
             }
           }).toDestination();
 
-        // Crear un Analyser y conectarlo al destino de audio
-        const analyser = new Tone.Analyser('fft', 256); // Puedes ajustar 'fft' o 'waveform' y el tamaño
+
+        const analyser = new Tone.Analyser('fft', 256);
         Tone.Destination.connect(analyser);
 
         Tone.Transport.on("stop", () => {
@@ -178,26 +177,20 @@ export default function Page() {
 
 
         function drawVisualizer() {
-            // Solicita el siguiente frame de animación
             animationFrameId = requestAnimationFrame(drawVisualizer);
-        
-            // Obtener los datos de frecuencia del Analyser
             const bufferLength = analyser.size;
             const dataArray = analyser.getValue();
         
-            // Limpiar el canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-            // Configurar parámetros de dibujo
+
             const barWidth = (canvas.width / bufferLength) * 2.5;
             let barHeight;
             let x = 0;
-        
-            // Recorrer los datos y dibujar las barras
+
             for (let i = 0; i < bufferLength; i++) {
                 barHeight = (dataArray[i] + 140) * 2;
         
-                ctx.fillStyle = `rgb(${Math.floor(barHeight + 100)}, 50, 50)`;
+                ctx.fillStyle = `rgb(${Math.floor(barHeight / 2 + 2)}, ${Math.floor(barHeight / 4 + 60)}, ${Math.floor(barHeight / 4 + 60)})`;
                 ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
         
                 x += barWidth + 1;
@@ -208,23 +201,28 @@ export default function Page() {
             await Tone.loaded(); 
             try {
                 await Tone.start();
-
+                temperature = parseFloat(document.getElementById('temperatureSlider').value);
+                duration = parseInt(document.getElementById('durationDropdown').value, 10);
+                const steps = Math.floor(duration / secondsPerStep);
                 const chordProgression = ['Am7', 'D9', 'Gmaj7', 'Cmaj7'];
+               
                 const pianoSequence = await melodyRNN.continueSequence(
                     {
-                        "quantizationInfo": {"stepsPerQuarter": 4},
+                        "quantizationInfo": { "stepsPerQuarter": 4 },
                         "notes": [
-                            {"pitch": 60, "quantizedStartStep": 0, "quantizedEndStep": 4},  // C4
-                            {"pitch": 64, "quantizedStartStep": 4, "quantizedEndStep": 8},  // E4
-                            {"pitch": 67, "quantizedStartStep": 8, "quantizedEndStep": 12}, // G4
-                            {"pitch": 62, "quantizedStartStep": 12, "quantizedEndStep": 16} // D4
+                            { "pitch": 60, "quantizedStartStep": 0, "quantizedEndStep": 4 },  // C4
+                            { "pitch": 64, "quantizedStartStep": 4, "quantizedEndStep": 8 },  // E4
+                            { "pitch": 67, "quantizedStartStep": 8, "quantizedEndStep": 12 }, // G4
+                            { "pitch": 62, "quantizedStartStep": 12, "quantizedEndStep": 16 } // D4
                         ],
                         "totalTime": 4.0,
                         "totalQuantizedSteps": 16,
-                        "tempos": [{"time": 0, "qpm": 80}]
-                      }
-                                            
-                    ,steps, temperature, chordProgression);
+                        "tempos": [{ "time": 0, "qpm": qpm }]
+                    },
+                    steps,
+                    temperature,
+                    chordProgression
+                );
                 console.log('pianoSequence:', pianoSequence);
                 const drumsSequence = await drums_rnn.continueSequence(
                     {
@@ -241,50 +239,54 @@ export default function Page() {
                         ],
                         "totalTime": 4.0,
                         "totalQuantizedSteps": 16,
-                        "tempos": [{"time": 0, "qpm": 80}]
-                      }      
-                    , steps, temperature);
+                        "tempos": [{"time": 0, "qpm": qpm}]
+                      } ,
+                    steps,
+                    temperature
+                );
                 console.log('drumsSequence:', drumsSequence);
                 const bassSequence = await bassRNN.continueSequence(
                     {
-                        "quantizationInfo": {"stepsPerQuarter": 4},
+                        "quantizationInfo": { "stepsPerQuarter": 4 },
                         "notes": [
-                            {"pitch": 50, "quantizedStartStep": 0, "quantizedEndStep": 4},  // C3
-                            {"pitch": 52, "quantizedStartStep": 4, "quantizedEndStep": 8},  // E3
-                            {"pitch": 53, "quantizedStartStep": 8, "quantizedEndStep": 12}, // A2
-                            {"pitch": 55, "quantizedStartStep": 12, "quantizedEndStep": 16} // G2
+                            { "pitch": 50, "quantizedStartStep": 0, "quantizedEndStep": 4 },  // C3
+                            { "pitch": 52, "quantizedStartStep": 4, "quantizedEndStep": 8 },  // E3
+                            { "pitch": 53, "quantizedStartStep": 8, "quantizedEndStep": 12 }, // A2
+                            { "pitch": 55, "quantizedStartStep": 12, "quantizedEndStep": 16 } // G2
                         ],
                         "totalTime": 4.0,
                         "totalQuantizedSteps": 16,
-                        "tempos": [{"time": 0, "qpm": 80}]
-                      }
-                      
-                    , steps, temperature, chordProgression);
+                        "tempos": [{ "time": 0, "qpm": qpm }]
+                    },
+                    steps,
+                    temperature,
+                    chordProgression
+                );
                 console.log('bassSequence:', bassSequence);
-
+                // Ajustar manualmente el QPM en la secuencia generada
+                pianoSequence.tempos = [{ qpm: qpm }];
+                drumsSequence.tempos = [{ qpm: qpm }];
+                bassSequence.tempos = [{ qpm: qpm }];
                 if (Tone.Transport.parts) {
                     Tone.Transport.parts.forEach(part => part.dispose());
                     Tone.Transport.parts = [];
-                }
-
+                }    
+                // Planificar las secuencias en Tone.js
                 const drumPart = planificarSecuencia(drumKit, drumsSequence, secondsPerStep);
                 const pianoPart = planificarSecuencia(synth, pianoSequence, secondsPerStep);
-                const bassPart = planificarSecuencia(bassSynth, bassSequence, secondsPerStep);
+                const bassPart = planificarSecuencia(bassSynth, bassSequence, secondsPerStep); 
                 Tone.Transport.parts = [drumPart, pianoPart, bassPart];
-                Tone.Transport.bpm.value = 60;
-                // Calcular la duración total de la canción en segundos
-                const totalSteps = drumsSequence.totalQuantizedSteps; // Todas las secuencias tienen los mismos pasos
-                songDuration = totalSteps * secondsPerStep;
-
+                Tone.Transport.bpm.value = qpm;
                 Tone.Transport.scheduleOnce(() => {
                     Tone.Transport.stop();
-                }, `+${songDuration}`);
-                drawVisualizer();
-                Tone.Transport.start();
+                }, `+${duration}`);
+                drawVisualizer(); 
+                Tone.Transport.start(); 
             } catch (error) {
                 console.error('Error en playSong:', error);
             }
         };
+        
         
 
         if (playBtn) 
@@ -302,32 +304,73 @@ export default function Page() {
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
+            
         };
 
 
     }, []);
 
     return (
-        <div className='block text-center'>
-
-            <div className="flex flex-col p-4">
-            
-            <div className="flex items-center w-full max-w-md my-2">
-                <div className="ml-2">
-                <canvas ref={canvasRef} className="bg-gray-200 rounded-md h-32 w-64"></canvas>
+        <div className="bg-gradient-to-b from-[#023C3C4D] via-[#027F7F33] to-white min-h-screen"> 
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
+                {/* Contenedor principal */}
+                <div className="flex w-full max-w-4xl p-4 bg-white rounded-lg shadow-md">
+                    {/* Controles (lado izquierdo) */}
+                    <div className="w-1/3 flex flex-col items-start p-4 border-r">
+                        <h2 className="text-lg font-semibold mb-4">Controles</h2>
+        
+                        {/* Control: Temperatura */}
+                        <label className="text-sm font-medium mb-1" htmlFor="temperatureSlider">
+                            Temperatura (0.8 - 1.5)
+                        </label>
+                        <input
+                            id="temperatureSlider"
+                            type="range"
+                            min="0.8"
+                            max="1.5"
+                            step="0.1"
+                            defaultValue="1"
+                            className="w-full mb-4"
+                        />
+        
+                        {/* Control: Duración */}
+                        <label className="text-sm font-medium mb-1" htmlFor="durationDropdown">
+                            Duración de la Canción
+                        </label>
+                        <select
+                            id="durationDropdown"
+                            className="w-full p-2 border rounded mb-4"
+                        >
+                            <option value="15">15 segundos</option>
+                            <option value="30">30 segundos</option>
+                            <option value="60">1 minuto</option>
+                            <option value="90">1 minuto 30 segundos</option>
+                            <option value="120">2 minutos</option>
+                            <option value="180">3 minutos</option>
+                        </select>
+                        {/* Botones (parte inferior) */}
+                        <div className="flex justify-center mt-6 space-x-4">
+                            <button id="playBtn" className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br" > Generar canción </button>
+                            <button id="recordBtn" className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br" > Grabar canción </button>
+                        </div>
+                    </div>
+        
+                    {/* Reproductor y visualizador (lado derecho) */}
+                    <div className="w-2/3 flex flex-col items-center p-4">
+                        <h2 className="text-lg font-semibold mb-4">Visualizador</h2>
+                        <canvas
+                            ref={canvasRef}
+                            className="bg-gray-200 rounded-md w-full h-64"
+                        ></canvas>
+                    </div>
+                     
                 </div>
             </div>
-        
-            
             <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.23.1"></script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
-            </div>
-
-            <button id='playBtn' className="mt-6 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"> Generar canción </button>
-            <button id='recordBtn' className="mt-6 bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600"> Grabar canción </button>
-        
-        </div>
-        
-      );
+        </div> 
+    );
+    
+    
       
 }

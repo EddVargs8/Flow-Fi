@@ -15,11 +15,16 @@ const geistMono = localFont({
 export const metadata = {
   title: "Flow-Fi",
   description: "IA proyect for music creation",
+  icons: {
+    icon: "/images/logos/icon.png",
+  },
 };
 
 
 export default function RootLayout({ children }) {
   return (
+    
+
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -27,5 +32,6 @@ export default function RootLayout({ children }) {
         {children}
       </body>
     </html>
+    
   );
 }
