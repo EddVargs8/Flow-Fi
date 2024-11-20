@@ -11,21 +11,20 @@ const isAuthenticated = false;
 export default function Example() {
   return (
     <div className="bg-gradient-to-b from-white via-[#027F7F33] to-[#023C3C4D] min-h-screen">
-      <header className="absolute inset-x-0 top-0 z-50 bg-white shadow-md">
-        <nav aria-label="Global" className="flex items-center justify-between p-6 lg:px-8">
-        
+      <header className="fixed inset-x-0 top-0 z-50 bg-white shadow-md">
+        <nav aria-label="Global" className="flex items-center justify-between p-4 lg:px-8">
           <div className="flex lg:flex-1 ml-14">
             <a href="/" className="p-1.5">
               <span className="sr-only">Flow-Fi</span>
               <img
                 alt="Flow-Fi"
                 src="/images/logos/name.png"
-                className="h-12 w-auto scale-250" 
-                style={{ transform: 'scale(2.5)' }} 
+                className="h-12 w-auto scale-250"
+                style={{ transform: 'scale(2.5)' }}
               />
             </a>
           </div>
-          <div className="hidden lg:flex lg:gap-x-12">
+          <div className="hidden lg:flex lg:gap-x-8">
             {navigation.map((item) => (
               <a
                 key={item.name}
@@ -56,8 +55,8 @@ export default function Example() {
         </nav>
       </header>
 
-      <div className="relative isolate px-6 pt-24 lg:px-8">
-        <div className="mx-auto max-w-2xl py-16 sm:py-24 lg:py-32">
+      <div className="relative isolate px-6 pt-20 lg:px-8">
+        <div className="mx-auto max-w-2xl py-12 sm:py-16 lg:py-20">
           <div className="text-center">
             <h1 className="text-5xl font-semibold tracking-tight text-gray-900 sm:text-7xl">
               Flow-Fi: Crea tu propia música Lo-Fi
@@ -65,7 +64,7 @@ export default function Example() {
             <p className="mt-8 text-lg font-medium text-gray-600 sm:text-xl">
               Genera canciones relajantes del género Lo-Fi con un solo clic. Regístrate, guarda tus melodías favoritas y descárgalas fácilmente.
             </p>
-            <br />        
+            <br />
             <div className="relative rounded-full px-3 py-1 text-sm/6 text-gray-600 ring-1 ring-gray-900/10 hover:ring-gray-900/20">
               Flow-Fi se basa en inteligencia artificial con Magenta.js para generar música Low-Fi de forma automática. Combina modelos avanzados para crear patrones de batería, melodías y bajos, ofreciendo una experiencia única y relajante al instante.
             </div>

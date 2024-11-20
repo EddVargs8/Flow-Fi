@@ -1,376 +1,437 @@
 // Crear cancion page
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 export default function Page() {
-    const canvasRef = useRef(null); 
+  const canvasRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingSequences, setLoadingSequences] = useState(false);
 
-    useEffect(() => { 
-        const drums_rnn = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn');
-        const melodyRNN = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv');
-        const bassRNN = new mm.MusicRNN('https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv');
+  useEffect(() => {
+    let synth = null;
+    let drumKit = null;
+    let bassSynth = null;
+    let drums_rnn = null;
+    let melodyRNN = null;
+    let bassRNN = null;
 
-        drums_rnn.initialize();
-        melodyRNN.initialize();
-        bassRNN.initialize();
+    const loadModels = async () => {
+      drums_rnn = new mm.MusicRNN(
+        "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn"
+      );
+      melodyRNN = new mm.MusicRNN(
+        "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv"
+      );
+      bassRNN = new mm.MusicRNN(
+        "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/chord_pitches_improv"
+      );
 
-        const playBtn = document.getElementById('playBtn');
-        const recordBtn = document.getElementById('recordBtn');
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
-        let duration; 
-        let steps;
-        let qpm = 65; 
-        let temperature;
-        let animationFrameId; 
-        const secondsPerStep = 60 / (qpm * 4); 
-        
-        function planificarSecuencia(instrument, sequence, secondsPerStep) {
-            const part = new Tone.Part((time, note) => {
-                instrument.triggerAttackRelease(
-                    Tone.Frequency(note.pitch, "midi").toNote(),
-                    (note.quantizedEndStep - note.quantizedStartStep) * secondsPerStep,
-                    time
-                );
-            }, sequence.notes.map(note => ({
-                time: note.quantizedStartStep * secondsPerStep,
-                pitch: note.pitch,
-                quantizedEndStep: note.quantizedEndStep,
-                quantizedStartStep: note.quantizedStartStep
-            })));
-            part.start(0); // Todas las partes se iniciarán en el tiempo 0
-            return part;
-        }
-        
+      synth = new Tone.Sampler({
+        urls: {
+          A0: "A0.ogg",
+          A1: "A1.ogg",
+          A2: "A2.ogg",
+          A3: "A3.ogg",
+          A4: "A4.ogg",
+          A5: "A5.ogg",
+          A6: "A6.ogg",
+          A7: "A7.ogg",
+          C1: "C1.ogg",
+          C2: "C2.ogg",
+          C3: "C3.ogg",
+          C4: "C4.ogg",
+          C5: "C5.ogg",
+          C6: "C6.ogg",
+          C7: "C7.ogg",
+          C8: "C8.ogg",
+          "D#1": "Ds1.ogg",
+          "D#2": "Ds2.ogg",
+          "D#3": "Ds3.ogg",
+          "D#4": "Ds4.ogg",
+          "D#5": "Ds5.ogg",
+          "D#6": "Ds6.ogg",
+          "D#7": "Ds7.ogg",
+          "F#1": "Fs1.ogg",
+          "F#2": "Fs2.ogg",
+          "F#3": "Fs3.ogg",
+          "F#4": "Fs4.ogg",
+          "F#5": "Fs5.ogg",
+          "F#6": "Fs6.ogg",
+          "F#7": "Fs7.ogg",
+        },
+        baseUrl: "/sounds/salamander/",
+        onload: () => {
+          console.log("Piano samples loaded!");
+        },
+      }).toDestination();
 
-        let mediaRecorder;
-        let audioChunks = [];
-        
-        const startRecording = async () => {
-            console.log(qpm, steps, temperature, duration);
-            await Tone.loaded();
-            await Tone.start();
-            const destination = Tone.Destination.context.createMediaStreamDestination();
-            Tone.Destination.connect(destination);
-            mediaRecorder = new MediaRecorder(destination.stream);
-            mediaRecorder.start();
+      drumKit = new Tone.Sampler({
+        urls: {
+          C1: "kick.mp3", // Bombo
+          D1: "snare.mp3", // Caja
+          E1: "hihat-closed.mp3", // Hi-hat cerrado
+          F1: "hihat-open.mp3", // Hi-hat abierto
+          G1: "clap.mp3", // Aplauso
+          A1: "tom-low.mp3", // Tom bajo
+          B1: "tom-mid.mp3", // Tom medio
+          C2: "tom-high.mp3", // Tom alto
+          D2: "ride.mp3", // Platillo ride
+        },
+        baseUrl: "/sounds/drums/",
+        onload: () => {
+          console.log("Kit de batería cargado");
+        },
+      }).toDestination();
 
-            mediaRecorder.ondataavailable = event => {
-                audioChunks.push(event.data);
-            };
+      bassSynth = new Tone.Sampler({
+        urls: {
+          "A#2": "As2.ogg",
+          "A#3": "As3.ogg",
+          "A#4": "As4.ogg",
+          "A#5": "As5.ogg",
+          "C#2": "Cs2.ogg",
+          "C#3": "Cs3.ogg",
+          "C#4": "Cs4.ogg",
+          "C#5": "Cs5.ogg",
+          "C#6": "Cs6.ogg",
+          E2: "E2.ogg",
+          E3: "E3.ogg",
+          E4: "E4.ogg",
+          E5: "E5.ogg",
+          G2: "G2.ogg",
+          G3: "G3.ogg",
+          G4: "G4.ogg",
+          G5: "G5.ogg",
+        },
+        baseUrl: "/sounds/bass/", // Ruta base a los archivos de samples
+        onload: () => {
+          console.log("Bass samples loaded!");
+        },
+      }).toDestination();
 
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const downloadLink = document.createElement('a');
-                downloadLink.href = audioUrl;
-                const uniqueId = Date.now();
-                downloadLink.download = `generated_song_${uniqueId}.wav`;
-                downloadLink.style.display = 'none';
-                document.body.appendChild(downloadLink);    
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                audioChunks = []; // Limpiar los datos de audio después de la descarga
-            };
+      await Promise.all([
+        drums_rnn.initialize(),
+        melodyRNN.initialize(),
+        bassRNN.initialize(),
+        Tone.loaded(),
+      ]);
 
-            Tone.Transport.scheduleOnce(() => {
-                Tone.Transport.stop();
-            }, `+${duration}`);
-            drawVisualizer();
-            Tone.Transport.start(); 
-        }
+      setLoading(false); // Modelos cargados
+    };
 
-        const synth = new Tone.Sampler({
-            urls: {
-                "A0": "A0.ogg",
-                "A1": "A1.ogg",
-                "A2": "A2.ogg",
-                "A3": "A3.ogg",
-                "A4": "A4.ogg",
-                "A5": "A5.ogg",
-                "A6": "A6.ogg",
-                "A7": "A7.ogg",
-                "C1": "C1.ogg",
-                "C2": "C2.ogg",
-                "C3": "C3.ogg",
-                "C4": "C4.ogg",
-                "C5": "C5.ogg",
-                "C6": "C6.ogg",
-                "C7": "C7.ogg",
-                "C8": "C8.ogg",
-                "D#1": "Ds1.ogg", 
-                "D#2": "Ds2.ogg", 
-                "D#3": "Ds3.ogg", 
-                "D#4": "Ds4.ogg", 
-                "D#5": "Ds5.ogg", 
-                "D#6": "Ds6.ogg", 
-                "D#7": "Ds7.ogg", 
-                "F#1": "Fs1.ogg", 
-                "F#2": "Fs2.ogg", 
-                "F#3": "Fs3.ogg", 
-                "F#4": "Fs4.ogg", 
-                "F#5": "Fs5.ogg", 
-                "F#6": "Fs6.ogg", 
-                "F#7": "Fs7.ogg"  
+    loadModels();
+    const playBtn = document.getElementById("playBtn");
+    const recordBtn = document.getElementById("recordBtn");
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    let duration;
+    let steps;
+    let qpm = 65;
+    let temperature;
+    let animationFrameId;
+    const secondsPerStep = 60 / (qpm * 4);
+
+    function planificarSecuencia(instrument, sequence, secondsPerStep) {
+      const part = new Tone.Part(
+        (time, note) => {
+          instrument.triggerAttackRelease(
+            Tone.Frequency(note.pitch, "midi").toNote(),
+            (note.quantizedEndStep - note.quantizedStartStep) * secondsPerStep,
+            time
+          );
+        },
+        sequence.notes.map((note) => ({
+          time: note.quantizedStartStep * secondsPerStep,
+          pitch: note.pitch,
+          quantizedEndStep: note.quantizedEndStep,
+          quantizedStartStep: note.quantizedStartStep,
+        }))
+      );
+      part.start(0); // Todas las partes se iniciarán en el tiempo 0
+      return part;
+    }
+
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const startRecording = async () => {
+      await Tone.loaded();
+      await Tone.start();
+      const destination =
+        Tone.Destination.context.createMediaStreamDestination();
+      Tone.Destination.connect(destination);
+      mediaRecorder = new MediaRecorder(destination.stream);
+      mediaRecorder.start();
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = audioUrl;
+        const uniqueId = Date.now();
+        downloadLink.download = `generated_song_${uniqueId}.wav`;
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        audioChunks = []; // Limpiar los datos de audio después de la descarga
+      };
+
+      Tone.Transport.scheduleOnce(() => {
+        Tone.Transport.stop();
+      }, `+${duration}`);
+      drawVisualizer();
+      Tone.Transport.start();
+    };
+
+    const analyser = new Tone.Analyser("fft", 256);
+    Tone.Destination.connect(analyser);
+
+    Tone.Transport.on("stop", () => {
+      if (mediaRecorder && mediaRecorder.state === "recording")
+        mediaRecorder.stop();
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    });
+
+    function drawVisualizer() {
+      animationFrameId = requestAnimationFrame(drawVisualizer);
+      const bufferLength = analyser.size;
+      const dataArray = analyser.getValue();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2.5;
+      let barHeight;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] + 140) * 2;
+
+        ctx.fillStyle = `rgb(${Math.floor(barHeight / 2 + 2)}, ${Math.floor(
+          barHeight / 4 + 60
+        )}, ${Math.floor(barHeight / 4 + 60)})`;
+        ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+
+        x += barWidth + 1;
+      }
+    }
+
+    const playSong = async () => {
+      setLoadingSequences(true); 
+      try {
+        await Tone.start();
+
+        temperature = parseFloat(
+          document.getElementById("temperatureSlider").value
+        );
+        duration = parseInt(
+          document.getElementById("durationDropdown").value,
+          10
+        );
+        steps = Math.floor(duration / secondsPerStep);
+        const chordProgression = ["Am7", "D9", "Gmaj7", "Cmaj7"];
+
+        const [pianoSequence, drumsSequence, bassSequence] = await Promise.all([
+          melodyRNN.continueSequence(
+            {
+              quantizationInfo: { stepsPerQuarter: 4 },
+              notes: [
+                { pitch: 60, quantizedStartStep: 0, quantizedEndStep: 4 }, // C4
+                { pitch: 64, quantizedStartStep: 4, quantizedEndStep: 8 }, // E4
+                { pitch: 67, quantizedStartStep: 8, quantizedEndStep: 12 }, // G4
+                { pitch: 62, quantizedStartStep: 12, quantizedEndStep: 16 }, // D4
+              ],
+              totalQuantizedSteps: 16,
+              tempos: [{ time: 0, qpm: 65 }],
             },
-            baseUrl: "/sounds/salamander/", 
-            onload: () => {
-                console.log("Piano samples loaded!");
-            }
-        }).toDestination();
-
-        const drumKit = new Tone.Sampler({
-            urls: {
-                "C1": "kick.mp3",        // Bombo
-                "D1": "snare.mp3",       // Caja
-                "E1": "hihat-closed.mp3",// Hi-hat cerrado
-                "F1": "hihat-open.mp3",  // Hi-hat abierto
-                "G1": "clap.mp3",        // Aplauso
-                "A1": "tom-low.mp3",     // Tom bajo
-                "B1": "tom-mid.mp3",     // Tom medio
-                "C2": "tom-high.mp3",    // Tom alto
-                "D2": "ride.mp3"         // Platillo ride
+            steps,
+            temperature,
+            chordProgression
+          ),
+          drums_rnn.continueSequence(
+            {
+              quantizationInfo: { stepsPerQuarter: 4 },
+              notes: [
+                { pitch: 36, quantizedStartStep: 0, quantizedEndStep: 2 }, // Kick
+                { pitch: 42, quantizedStartStep: 2, quantizedEndStep: 4 }, // Hi-hat
+                { pitch: 38, quantizedStartStep: 4, quantizedEndStep: 6 }, // Snare
+                { pitch: 42, quantizedStartStep: 6, quantizedEndStep: 8 }, // Hi-hat
+              ],
+              totalQuantizedSteps: 16,
+              tempos: [{ time: 0, qpm: 65 }],
             },
-            baseUrl: "/sounds/drums/", 
-            onload: () => {
-                console.log("Kit de batería cargado");
-            }
-        }).toDestination();
-
-        const bassSynth = new Tone.Sampler({
-            urls: {
-              "A#2": "As2.ogg",
-              "A#3": "As3.ogg",
-              "A#4": "As4.ogg",
-              "A#5": "As5.ogg",
-              "C#2": "Cs2.ogg",
-              "C#3": "Cs3.ogg",
-              "C#4": "Cs4.ogg",
-              "C#5": "Cs5.ogg",
-              "C#6": "Cs6.ogg",
-              "E2": "E2.ogg",
-              "E3": "E3.ogg",
-              "E4": "E4.ogg",
-              "E5": "E5.ogg",
-              "G2": "G2.ogg",
-              "G3": "G3.ogg",
-              "G4": "G4.ogg",
-              "G5": "G5.ogg"
+            steps,
+            temperature
+          ),
+          bassRNN.continueSequence(
+            {
+              quantizationInfo: { stepsPerQuarter: 4 },
+              notes: [
+                { pitch: 50, quantizedStartStep: 0, quantizedEndStep: 4 }, // C3
+                { pitch: 52, quantizedStartStep: 4, quantizedEndStep: 8 }, // E3
+                { pitch: 53, quantizedStartStep: 8, quantizedEndStep: 12 }, // A2
+                { pitch: 55, quantizedStartStep: 12, quantizedEndStep: 16 }, // G2
+              ],
+              totalQuantizedSteps: 16,
+              tempos: [{ time: 0, qpm: 65 }],
             },
-            baseUrl: "/sounds/bass/", // Ruta base a los archivos de samples
-            onload: () => {
-                console.log("Bass samples loaded!");
-            }
-          }).toDestination();
+            steps,
+            temperature,
+            chordProgression
+          ),
+        ]);
+        setLoadingSequences(false); // Ocultar loader del canvas
 
-
-        const analyser = new Tone.Analyser('fft', 256);
-        Tone.Destination.connect(analyser);
-
-        Tone.Transport.on("stop", () => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-        });
-
-
-        function drawVisualizer() {
-            animationFrameId = requestAnimationFrame(drawVisualizer);
-            const bufferLength = analyser.size;
-            const dataArray = analyser.getValue();
-        
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const barWidth = (canvas.width / bufferLength) * 2.5;
-            let barHeight;
-            let x = 0;
-
-            for (let i = 0; i < bufferLength; i++) {
-                barHeight = (dataArray[i] + 140) * 2;
-        
-                ctx.fillStyle = `rgb(${Math.floor(barHeight / 2 + 2)}, ${Math.floor(barHeight / 4 + 60)}, ${Math.floor(barHeight / 4 + 60)})`;
-                ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
-        
-                x += barWidth + 1;
-            }
+        pianoSequence.tempos = [{ qpm: qpm }];
+        drumsSequence.tempos = [{ qpm: qpm }];
+        bassSequence.tempos = [{ qpm: qpm }];
+        if (Tone.Transport.parts) {
+          Tone.Transport.parts.forEach((part) => part.dispose());
+          Tone.Transport.parts = [];
         }
-        
-        const playSong = async () => {
-            await Tone.loaded(); 
-            try {
-                await Tone.start();
-                temperature = parseFloat(document.getElementById('temperatureSlider').value);
-                duration = parseInt(document.getElementById('durationDropdown').value, 10);
-                const steps = Math.floor(duration / secondsPerStep);
-                const chordProgression = ['Am7', 'D9', 'Gmaj7', 'Cmaj7'];
-               
-                const pianoSequence = await melodyRNN.continueSequence(
-                    {
-                        "quantizationInfo": { "stepsPerQuarter": 4 },
-                        "notes": [
-                            { "pitch": 60, "quantizedStartStep": 0, "quantizedEndStep": 4 },  // C4
-                            { "pitch": 64, "quantizedStartStep": 4, "quantizedEndStep": 8 },  // E4
-                            { "pitch": 67, "quantizedStartStep": 8, "quantizedEndStep": 12 }, // G4
-                            { "pitch": 62, "quantizedStartStep": 12, "quantizedEndStep": 16 } // D4
-                        ],
-                        "totalTime": 4.0,
-                        "totalQuantizedSteps": 16,
-                        "tempos": [{ "time": 0, "qpm": qpm }]
-                    },
-                    steps,
-                    temperature,
-                    chordProgression
-                );
-                console.log('pianoSequence:', pianoSequence);
-                const drumsSequence = await drums_rnn.continueSequence(
-                    {
-                        "quantizationInfo": {"stepsPerQuarter": 4},
-                        "notes": [
-                          {"pitch": 36, "startTime": 0.0, "endTime": 0.5, "quantizedStartStep": 0, "quantizedEndStep": 2},   // Kick
-                          {"pitch": 42, "startTime": 0.5, "endTime": 1.0, "quantizedStartStep": 2, "quantizedEndStep": 4},   // Hi-hat
-                          {"pitch": 38, "startTime": 1.0, "endTime": 1.5, "quantizedStartStep": 4, "quantizedEndStep": 6},   // Snare
-                          {"pitch": 42, "startTime": 1.5, "endTime": 2.0, "quantizedStartStep": 6, "quantizedEndStep": 8},   // Hi-hat
-                          {"pitch": 36, "startTime": 2.0, "endTime": 2.5, "quantizedStartStep": 8, "quantizedEndStep": 10},  // Kick
-                          {"pitch": 42, "startTime": 2.5, "endTime": 3.0, "quantizedStartStep": 10, "quantizedEndStep": 12}, // Hi-hat
-                          {"pitch": 38, "startTime": 3.0, "endTime": 3.5, "quantizedStartStep": 12, "quantizedEndStep": 14}, // Snare
-                          {"pitch": 42, "startTime": 3.5, "endTime": 4.0, "quantizedStartStep": 14, "quantizedEndStep": 16}  // Hi-hat
-                        ],
-                        "totalTime": 4.0,
-                        "totalQuantizedSteps": 16,
-                        "tempos": [{"time": 0, "qpm": qpm}]
-                      } ,
-                    steps,
-                    temperature
-                );
-                console.log('drumsSequence:', drumsSequence);
-                const bassSequence = await bassRNN.continueSequence(
-                    {
-                        "quantizationInfo": { "stepsPerQuarter": 4 },
-                        "notes": [
-                            { "pitch": 50, "quantizedStartStep": 0, "quantizedEndStep": 4 },  // C3
-                            { "pitch": 52, "quantizedStartStep": 4, "quantizedEndStep": 8 },  // E3
-                            { "pitch": 53, "quantizedStartStep": 8, "quantizedEndStep": 12 }, // A2
-                            { "pitch": 55, "quantizedStartStep": 12, "quantizedEndStep": 16 } // G2
-                        ],
-                        "totalTime": 4.0,
-                        "totalQuantizedSteps": 16,
-                        "tempos": [{ "time": 0, "qpm": qpm }]
-                    },
-                    steps,
-                    temperature,
-                    chordProgression
-                );
-                console.log('bassSequence:', bassSequence);
-                // Ajustar manualmente el QPM en la secuencia generada
-                pianoSequence.tempos = [{ qpm: qpm }];
-                drumsSequence.tempos = [{ qpm: qpm }];
-                bassSequence.tempos = [{ qpm: qpm }];
-                if (Tone.Transport.parts) {
-                    Tone.Transport.parts.forEach(part => part.dispose());
-                    Tone.Transport.parts = [];
-                }    
-                // Planificar las secuencias en Tone.js
-                const drumPart = planificarSecuencia(drumKit, drumsSequence, secondsPerStep);
-                const pianoPart = planificarSecuencia(synth, pianoSequence, secondsPerStep);
-                const bassPart = planificarSecuencia(bassSynth, bassSequence, secondsPerStep); 
-                Tone.Transport.parts = [drumPart, pianoPart, bassPart];
-                Tone.Transport.bpm.value = qpm;
-                Tone.Transport.scheduleOnce(() => {
-                    Tone.Transport.stop();
-                }, `+${duration}`);
-                drawVisualizer(); 
-                Tone.Transport.start(); 
-            } catch (error) {
-                console.error('Error en playSong:', error);
-            }
-        };
-        
-        
+        const drumPart = planificarSecuencia(
+          drumKit,
+          drumsSequence,
+          secondsPerStep
+        );
+        const pianoPart = planificarSecuencia(
+          synth,
+          pianoSequence,
+          secondsPerStep
+        );
+        const bassPart = planificarSecuencia(
+          bassSynth,
+          bassSequence,
+          secondsPerStep
+        );
+        Tone.Transport.parts = [drumPart, pianoPart, bassPart];
+        Tone.Transport.bpm.value = 40;
+        Tone.Transport.scheduleOnce(() => {
+          Tone.Transport.stop();
+        }, `+${duration}`);
+        drawVisualizer();
+        Tone.Transport.start();
+      } catch (error) {
+        console.error("Error en playSong:", error);
+        setLoadingSequences(false);
+      }
+    };
 
-        if (playBtn) 
-            playBtn.addEventListener('click', playSong);
-        if (recordBtn) 
-            recordBtn.addEventListener('click', startRecording);
-        // Limpieza para evitar duplicados
-        return () => {
-            if (playBtn)
-                playBtn.removeEventListener('click', playSong);
-            if (recordBtn)
-                recordBtn.removeEventListener('click', startRecording);
-            Tone.Transport.stop();
-            Tone.Transport.cancel();
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
-            
-        };
+    if (playBtn) playBtn.addEventListener("click", playSong);
+    if (recordBtn) recordBtn.addEventListener("click", startRecording);
+  }, []);
 
+  return (
+    <>
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center space-y-4">
+          <l-metronome size="300" speed="1.6" color="#023C3C"></l-metronome>
+          <p className="text-white text-lg font-medium">
+            Inicializando modelos de Magenta...
+          </p>
+        </div>
+      )}
 
-    }, []);
+      <div className="bg-gradient-to-b from-[#023C3C4D] via-[#027F7F33] to-white min-h-screen">
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
+          <div className="flex w-full max-w-4xl p-4 bg-white rounded-lg shadow-md">
+            <div className="w-1/3 flex flex-col items-start p-4 border-r">
+              <h2 className="text-lg font-semibold mb-4">Controles</h2>
 
-    return (
-        <div className="bg-gradient-to-b from-[#023C3C4D] via-[#027F7F33] to-white min-h-screen"> 
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)]">
-                {/* Contenedor principal */}
-                <div className="flex w-full max-w-4xl p-4 bg-white rounded-lg shadow-md">
-                    {/* Controles (lado izquierdo) */}
-                    <div className="w-1/3 flex flex-col items-start p-4 border-r">
-                        <h2 className="text-lg font-semibold mb-4">Controles</h2>
-        
-                        {/* Control: Temperatura */}
-                        <label className="text-sm font-medium mb-1" htmlFor="temperatureSlider">
-                            Temperatura (0.8 - 1.5)
-                        </label>
-                        <input
-                            id="temperatureSlider"
-                            type="range"
-                            min="0.8"
-                            max="1.5"
-                            step="0.1"
-                            defaultValue="1"
-                            className="w-full mb-4"
-                        />
-        
-                        {/* Control: Duración */}
-                        <label className="text-sm font-medium mb-1" htmlFor="durationDropdown">
-                            Duración de la Canción
-                        </label>
-                        <select
-                            id="durationDropdown"
-                            className="w-full p-2 border rounded mb-4"
-                        >
-                            <option value="15">15 segundos</option>
-                            <option value="30">30 segundos</option>
-                            <option value="60">1 minuto</option>
-                            <option value="90">1 minuto 30 segundos</option>
-                            <option value="120">2 minutos</option>
-                            <option value="180">3 minutos</option>
-                        </select>
-                        {/* Botones (parte inferior) */}
-                        <div className="flex justify-center mt-6 space-x-4">
-                            <button id="playBtn" className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br" > Generar canción </button>
-                            <button id="recordBtn" className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br" > Grabar canción </button>
-                        </div>
-                    </div>
-        
-                    {/* Reproductor y visualizador (lado derecho) */}
-                    <div className="w-2/3 flex flex-col items-center p-4">
-                        <h2 className="text-lg font-semibold mb-4">Visualizador</h2>
-                        <canvas
-                            ref={canvasRef}
-                            className="bg-gray-200 rounded-md w-full h-64"
-                        ></canvas>
-                    </div>
-                     
-                </div>
+              {/* Control: Temperatura */}
+              <label
+                className="text-sm font-medium mb-1"
+                htmlFor="temperatureSlider"
+              >
+                Temperatura (0.8 - 1.5)
+              </label>
+              <input
+                id="temperatureSlider"
+                type="range"
+                min="0.8"
+                max="1.5"
+                step="0.1"
+                defaultValue="1"
+                className="w-full mb-4"
+              />
+
+              {/* Control: Duración */}
+              <label
+                className="text-sm font-medium mb-1"
+                htmlFor="durationDropdown"
+              >
+                Duración de la Canción
+              </label>
+              <select
+                id="durationDropdown"
+                className="w-full p-2 border rounded mb-4"
+              >
+                <option value="15">15 segundos</option>
+                <option value="30">30 segundos</option>
+                <option value="60">1 minuto</option>
+                <option value="90">1 minuto 30 segundos</option>
+                <option value="120">2 minutos</option>
+                <option value="180">3 minutos</option>
+              </select>
+              {/* Botones (parte inferior) */}
+              <div className="flex justify-center mt-6 space-x-4">
+                <button
+                  id="playBtn"
+                  className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
+                >
+                  {" "}
+                  Generar canción{" "}
+                </button>
+                <button
+                  id="recordBtn"
+                  className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
+                >
+                  {" "}
+                  Grabar canción{" "}
+                </button>
+              </div>
             </div>
-            <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.23.1"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
-        </div> 
-    );
-    
-    
-      
+
+            <div className="w-2/3 flex flex-col items-center p-4 relative">
+              <h2 className="text-lg font-semibold mb-4">Visualizador</h2>
+              <canvas
+                ref={canvasRef}
+                className="bg-gray-200 rounded-md w-full h-64"
+              ></canvas>
+              {loadingSequences && (
+                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                  <l-waveform
+                    size="50"
+                    stroke="3.5"
+                    speed="1"
+                    color="#023C3C"
+                  ></l-waveform>
+                  <p className="text-gray-800 font-medium mt-4 ml-4">
+                    Generando canción...
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/@magenta/music@^1.23.1"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
+        <script
+          type="module"
+          src="https://cdn.jsdelivr.net/npm/ldrs/dist/auto/metronome.js"
+        ></script>
+        <script
+          type="module"
+          src="https://cdn.jsdelivr.net/npm/ldrs/dist/auto/waveform.js"
+        ></script>
+      </div>
+    </>
+  );
 }
