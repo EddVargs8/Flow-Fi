@@ -16,6 +16,7 @@
     "@tailwindcss/forms": "^0.5.9",
     "ldrs": "^1.0.2",
     "next": "14.2.13",
+    "next-auth": "^4.24.10",
     "react": "^18",
     "react-dom": "^18"
   },

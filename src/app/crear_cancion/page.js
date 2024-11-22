@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { pianoSeeds, bassSeeds, drumsSeeds } from "../MIDI conversion/seeds";
 
 export default function Page() {
   const canvasRef = useRef(null);
@@ -15,6 +16,7 @@ export default function Page() {
     let drums_rnn = null;
     let melodyRNN = null;
     let bassRNN = null;
+    let rainSound = null;
 
     const loadModels = async () => {
       drums_rnn = new mm.MusicRNN(
@@ -110,6 +112,13 @@ export default function Page() {
         },
       }).toDestination();
 
+      rainSound = new Tone.Player({
+        url: "/sounds/fx/rain.mp3", // Ruta del sonido de lluvia
+        loop: true, // Repetir sonido mientras la canción esté activa
+        autostart: false, // No empezar automáticamente
+        volume: -6, // Nivel inicial de volumen (ajústalo según prefieras)
+      }).toDestination();
+
       await Promise.all([
         drums_rnn.initialize(),
         melodyRNN.initialize(),
@@ -193,10 +202,14 @@ export default function Page() {
     Tone.Destination.connect(analyser);
 
     Tone.Transport.on("stop", () => {
-      if (mediaRecorder && mediaRecorder.state === "recording")
+      if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
+     }
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
+      }
+      if (rainSound) {
+        rainSound.stop(); // Detén la lluvia si está activa
       }
     });
 
@@ -223,6 +236,8 @@ export default function Page() {
       }
     }
 
+    const getRandomSeed = (seeds) => seeds[Math.floor(Math.random() * seeds.length)];
+
     const playSong = async () => {
       setLoadingSequences(true); 
       try {
@@ -236,52 +251,25 @@ export default function Page() {
           10
         );
         steps = Math.floor(duration / secondsPerStep);
-        const chordProgression = ["Am7", "D9", "Gmaj7", "Cmaj7"];
+        const chordProgression = ["Dm7", "G7", "Cmaj7", "Am7"];
 
+        const pianoSeed = getRandomSeed(pianoSeeds);
+        const bassSeed = getRandomSeed(bassSeeds);
+        const drumsSeed = getRandomSeed(drumsSeeds);
         const [pianoSequence, drumsSequence, bassSequence] = await Promise.all([
           melodyRNN.continueSequence(
-            {
-              quantizationInfo: { stepsPerQuarter: 4 },
-              notes: [
-                { pitch: 60, quantizedStartStep: 0, quantizedEndStep: 4 }, // C4
-                { pitch: 64, quantizedStartStep: 4, quantizedEndStep: 8 }, // E4
-                { pitch: 67, quantizedStartStep: 8, quantizedEndStep: 12 }, // G4
-                { pitch: 62, quantizedStartStep: 12, quantizedEndStep: 16 }, // D4
-              ],
-              totalQuantizedSteps: 16,
-              tempos: [{ time: 0, qpm: 65 }],
-            },
+            pianoSeed,
             steps,
             temperature,
             chordProgression
           ),
           drums_rnn.continueSequence(
-            {
-              quantizationInfo: { stepsPerQuarter: 4 },
-              notes: [
-                { pitch: 36, quantizedStartStep: 0, quantizedEndStep: 2 }, // Kick
-                { pitch: 42, quantizedStartStep: 2, quantizedEndStep: 4 }, // Hi-hat
-                { pitch: 38, quantizedStartStep: 4, quantizedEndStep: 6 }, // Snare
-                { pitch: 42, quantizedStartStep: 6, quantizedEndStep: 8 }, // Hi-hat
-              ],
-              totalQuantizedSteps: 16,
-              tempos: [{ time: 0, qpm: 65 }],
-            },
+            drumsSeed,
             steps,
             temperature
           ),
           bassRNN.continueSequence(
-            {
-              quantizationInfo: { stepsPerQuarter: 4 },
-              notes: [
-                { pitch: 50, quantizedStartStep: 0, quantizedEndStep: 4 }, // C3
-                { pitch: 52, quantizedStartStep: 4, quantizedEndStep: 8 }, // E3
-                { pitch: 53, quantizedStartStep: 8, quantizedEndStep: 12 }, // A2
-                { pitch: 55, quantizedStartStep: 12, quantizedEndStep: 16 }, // G2
-              ],
-              totalQuantizedSteps: 16,
-              tempos: [{ time: 0, qpm: 65 }],
-            },
+            bassSeed,
             steps,
             temperature,
             chordProgression
@@ -312,9 +300,16 @@ export default function Page() {
           secondsPerStep
         );
         Tone.Transport.parts = [drumPart, pianoPart, bassPart];
-        Tone.Transport.bpm.value = 40;
+        Tone.Transport.bpm.value = qpm;
+        if (rainSound) {
+            rainSound.start();
+        }
+
         Tone.Transport.scheduleOnce(() => {
           Tone.Transport.stop();
+          if (rainSound) {
+            rainSound.stop(); // Detén la lluvia al finalizar
+          }
         }, `+${duration}`);
         drawVisualizer();
         Tone.Transport.start();

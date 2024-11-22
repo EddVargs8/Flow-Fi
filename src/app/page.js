@@ -1,9 +1,7 @@
 'use client'
 
 const navigation = [
-  { name: 'Inicio', href: '/', current: true },
-  { name: 'Crear Cancion', href: '/crear_cancion', current: false },
-  { name: 'Mis canciones', href: '/listar_canciones', current: false },
+  
 ]
 
 const isAuthenticated = false;
