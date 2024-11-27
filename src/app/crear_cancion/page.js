@@ -3,8 +3,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { pianoSeeds, bassSeeds, drumsSeeds } from "../MIDI conversion/seeds";
+import { useSession } from "next-auth/react";
 
 export default function Page() {
+  const { data: session } = useSession();
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [loadingSequences, setLoadingSequences] = useState(false);
@@ -384,13 +386,23 @@ export default function Page() {
                   {" "}
                   Generar canción{" "}
                 </button>
-                <button
-                  id="recordBtn"
-                  className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
-                >
-                  {" "}
-                  Grabar canción{" "}
-                </button>
+                
+
+
+                {session ? (
+              <button
+              id="recordBtn"
+              className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
+            >
+              {" "}
+              Grabar canción{" "}
+            </button>
+            ) : (
+              <p> </p>
+            )}
+
+
+                
               </div>
             </div>
 

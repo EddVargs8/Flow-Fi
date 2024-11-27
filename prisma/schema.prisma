@@ -14,31 +14,24 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique
-  password   String
-  createdAt  DateTime @default(now())
-  
-  profile    Profile?
-  songs      Song[]
-}
-
-model Profile {
-  id        Int    @id @default(autoincrement())
-  userId    Int    @unique
-  username  String @unique
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  username  String   @unique
   bio       String?
+  createdAt DateTime @default(now())
 
-  user      User   @relation(fields: [userId], references: [id])
+  songs Song[]
 }
 
 model Song {
-  id         Int      @id @default(autoincrement())
-  title      String
-  duration   Int      // Duración en segundos
-  fileUrl    String   // Ruta del archivo generado
-  createdAt  DateTime @default(now())
-  userId     Int
+  id        Int      @id @default(autoincrement())
+  title     String
+  duration  Int? // Duración en segundos, puede ser nulo si no se captura
+  fileUrl   String? // Ruta del archivo o URL del blob almacenado
+  blobData  Bytes? // Para guardar directamente el blob si decides no almacenarlo como archivo
+  createdAt DateTime @default(now())
+  userId    Int
 
-  user       User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }

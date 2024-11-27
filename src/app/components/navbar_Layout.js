@@ -1,12 +1,16 @@
 'use client'
 
+import { useSession } from "next-auth/react";
+
 const navigation = [
   { name: 'Inicio', href: '/', current: true },
   { name: 'Crear Canción', href: '/crear_cancion', current: false },
-  { name: 'Mis Canciones', href: '/listar_canciones', current: false },
+  { name: 'Mis Canciones', href: '/listar_canciones', current: false, protected: true },
 ]
 
 export default function Navbar({ isAuthenticated, children }) {
+  const { data: session } = useSession(); 
+
   return (
     <>
       {/* Header */}
@@ -27,20 +31,21 @@ export default function Navbar({ isAuthenticated, children }) {
 
           {/* Links */}
           <div className="flex lg:gap-x-12">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-sm font-semibold text-white hover:text-[#f0fdfa] px-4 py-2 rounded-md border border-transparent hover:border-white"
-              >
-                {item.name}
-              </a>
-            ))}
-          </div>
-
+      {navigation
+        .filter((item) => !item.protected || (item.protected && session)) // Muestra solo enlaces permitidos
+        .map((item) => (
+          <a
+            key={item.name}
+            href={item.href}
+            className="text-sm font-semibold text-white hover:text-[#f0fdfa] px-4 py-2 rounded-md border border-transparent hover:border-white"
+          >
+            {item.name}
+          </a>
+        ))}
+    </div>
           {/* Right-side actions */}
           <div className="flex lg:flex-1 lg:justify-end">
-            {isAuthenticated ? (
+          {session ? (
               <a
                 href="/profile"
                 className="text-sm font-semibold text-white hover:text-[#f0fdfa] px-4 py-2 rounded-md border border-transparent hover:border-white"

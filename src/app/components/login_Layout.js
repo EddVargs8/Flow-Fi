@@ -24,7 +24,7 @@ export default function LoginLayout() {
       setError("Credenciales incorrectas. Inténtalo de nuevo.");
     } else {
       // Redirige al usuario tras un inicio exitoso
-      window.location.href = "/";
+      window.location.href = "/crear_cancion";
     }
   };
 

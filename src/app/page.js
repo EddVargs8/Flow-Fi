@@ -1,16 +1,15 @@
-'use client'
+'use client';
 
-const navigation = [
-  
-]
-
-const isAuthenticated = false;
+import { useSession } from "next-auth/react";
 
 export default function Example() {
+  const { data: session } = useSession();
+
   return (
     <div className="bg-gradient-to-b from-white via-[#027F7F33] to-[#023C3C4D] min-h-screen">
+      {/* Cabecera con imagen y sesión */}
       <header className="fixed inset-x-0 top-0 z-50 bg-white shadow-md">
-        <nav aria-label="Global" className="flex items-center justify-between p-4 lg:px-8">
+        <div className="flex items-center justify-between p-4 lg:px-8">
           <div className="flex lg:flex-1 ml-14">
             <a href="/" className="p-1.5">
               <span className="sr-only">Flow-Fi</span>
@@ -18,23 +17,12 @@ export default function Example() {
                 alt="Flow-Fi"
                 src="/images/logos/name.png"
                 className="h-12 w-auto scale-250"
-                style={{ transform: 'scale(2.5)' }}
+                style={{ transform: "scale(2.5)" }}
               />
             </a>
           </div>
-          <div className="hidden lg:flex lg:gap-x-8">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-sm font-semibold text-gray-800 hover:text-[#023C3C] px-4 py-2 rounded-md border border-transparent hover:border-[#023C3C] hover:bg-[#f0fdfa]"
-              >
-                {item.name}
-              </a>
-            ))}
-          </div>
-          <div className="flex lg:flex-1 lg:justify-end">
-            {isAuthenticated ? (
+          <div>
+            {session ? (
               <a
                 href="/profile"
                 className="text-sm font-semibold text-gray-800 hover:text-[#023C3C] px-4 py-2 rounded-md border border-transparent hover:border-[#023C3C] hover:bg-[#f0fdfa]"
@@ -50,11 +38,12 @@ export default function Example() {
               </a>
             )}
           </div>
-        </nav>
+        </div>
       </header>
 
-      <div className="relative isolate px-6 pt-20 lg:px-8">
-        <div className="mx-auto max-w-2xl py-12 sm:py-16 lg:py-20">
+      {/* Contenido principal */}
+      <div className="relative isolate px-6 pt-10 lg:px-8">
+        <div className="mx-auto max-w-2xl sm:py-16 lg:py-20">
           <div className="text-center">
             <h1 className="text-5xl font-semibold tracking-tight text-gray-900 sm:text-7xl">
               Flow-Fi: Crea tu propia música Lo-Fi
@@ -64,7 +53,7 @@ export default function Example() {
             </p>
             <br />
             <div className="relative rounded-full px-3 py-1 text-sm/6 text-gray-600 ring-1 ring-gray-900/10 hover:ring-gray-900/20">
-              Flow-Fi se basa en inteligencia artificial con Magenta.js para generar música Low-Fi de forma automática. Combina modelos avanzados para crear patrones de batería, melodías y bajos, ofreciendo una experiencia única y relajante al instante.
+              Flow-Fi se basa en inteligencia artificial con Magenta.js para generar música del género Lo-Fi de forma automática. Combina modelos avanzados para crear patrones de batería, melodías y bajos, ofreciendo una experiencia única y relajante al instante.
             </div>
             <div className="mt-10 flex items-center justify-center gap-x-6">
               <a
@@ -73,7 +62,9 @@ export default function Example() {
               >
                 Crear una canción
               </a>
-              <a href="https://magenta.tensorflow.org/get-started" className="text-sm font-semibold text-gray-900 hover:text-[#02514E]"
+              <a
+                href="https://magenta.tensorflow.org/get-started"
+                className="text-sm font-semibold text-gray-900 hover:text-[#02514E]"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -84,5 +75,5 @@ export default function Example() {
         </div>
       </div>
     </div>
-  )
+  );
 }

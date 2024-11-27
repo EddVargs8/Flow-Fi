@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from '../../../utils/prisma';
-
+import prisma from '../../../utils/prisma';
+import bcrypt from 'bcrypt';
 
 const authHandler = NextAuth({
   providers: [
@@ -22,15 +22,16 @@ const authHandler = NextAuth({
           throw new Error("Usuario no encontrado");
         }
 
-        // Comparación de contraseñas (puedes usar bcrypt si están hasheadas)
-        if (credentials.password !== user.password) {
-          throw new Error("Contraseña incorrecta");
-        }
+        const isMatch = await bcrypt.compare(credentials.password, user.password);
+if (!isMatch) {
+  throw new Error("Credenciales inválidas");
+}
+
 
         return {
           id: user.id,
           email: user.email,
-          profile: user.profile?.username || null,
+          username: user.username,
         };
       },
     }),
