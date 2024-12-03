@@ -10,6 +10,52 @@ export default function Page() {
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [loadingSequences, setLoadingSequences] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState(null);
+  const [duration, setDuration] = useState(null);
+
+  async function blobToUint8Array(blob) {
+    const arrayBuffer = await blob.arrayBuffer();
+    return new Uint8Array(arrayBuffer);
+  }
+
+  async function saveSongToDatabase(recordedBlob, title, duration, userId) {
+    const blobData = await blobToUint8Array(recordedBlob);
+
+    const response = await fetch('/api/song', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        duration,
+        userId,
+        blobData: Array.from(blobData), // Convertir Uint8Array a un arreglo para enviar como JSON
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Error al guardar la canción en la base de datos', response);
+      return;
+    }
+    console.log('Canción guardada exitosamente');
+  }
+
+
+  const startRecording = () => {    
+    if (!recordedBlob) {
+      alert("No hay audio grabado para descargar.");
+      return;
+    }
+
+    const audioUrl = URL.createObjectURL(recordedBlob);
+    const downloadLink = document.createElement("a");
+    const uniqueId = Date.now();
+    downloadLink.href = audioUrl;
+    downloadLink.download = `generated_song_${uniqueId}.wav`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    saveSongToDatabase(recordedBlob, `generated_song_${uniqueId}.wav`, duration, session.user.id);
+  };
 
   useEffect(() => {
     let synth = null;
@@ -19,7 +65,10 @@ export default function Page() {
     let melodyRNN = null;
     let bassRNN = null;
     let rainSound = null;
-
+    let mediaRecorder;
+    let audioChunks = [];
+    let finalBlob;
+    
     const loadModels = async () => {
       drums_rnn = new mm.MusicRNN(
         "https://storage.googleapis.com/magentadata/js/checkpoints/music_rnn/drum_kit_rnn"
@@ -133,7 +182,6 @@ export default function Page() {
 
     loadModels();
     const playBtn = document.getElementById("playBtn");
-    const recordBtn = document.getElementById("recordBtn");
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     let duration;
@@ -162,43 +210,6 @@ export default function Page() {
       part.start(0); // Todas las partes se iniciarán en el tiempo 0
       return part;
     }
-
-    let mediaRecorder;
-    let audioChunks = [];
-
-    const startRecording = async () => {
-      await Tone.loaded();
-      await Tone.start();
-      const destination =
-        Tone.Destination.context.createMediaStreamDestination();
-      Tone.Destination.connect(destination);
-      mediaRecorder = new MediaRecorder(destination.stream);
-      mediaRecorder.start();
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const downloadLink = document.createElement("a");
-        downloadLink.href = audioUrl;
-        const uniqueId = Date.now();
-        downloadLink.download = `generated_song_${uniqueId}.wav`;
-        downloadLink.style.display = "none";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        audioChunks = []; // Limpiar los datos de audio después de la descarga
-      };
-
-      Tone.Transport.scheduleOnce(() => {
-        Tone.Transport.stop();
-      }, `+${duration}`);
-      drawVisualizer();
-      Tone.Transport.start();
-    };
 
     const analyser = new Tone.Analyser("fft", 256);
     Tone.Destination.connect(analyser);
@@ -239,7 +250,10 @@ export default function Page() {
     }
 
     const getRandomSeed = (seeds) => seeds[Math.floor(Math.random() * seeds.length)];
+    
+    
 
+   
     const playSong = async () => {
       setLoadingSequences(true); 
       try {
@@ -252,6 +266,7 @@ export default function Page() {
           document.getElementById("durationDropdown").value,
           10
         );
+        setDuration(duration);
         steps = Math.floor(duration / secondsPerStep);
         const chordProgression = ["Dm7", "G7", "Cmaj7", "Am7"];
 
@@ -307,13 +322,28 @@ export default function Page() {
             rainSound.start();
         }
 
+        // Crear destino para grabación
+        const destination =
+        Tone.Destination.context.createMediaStreamDestination();
+        Tone.Destination.connect(destination);
+        mediaRecorder = new MediaRecorder(destination.stream);
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+        mediaRecorder.onstop = () => {
+          finalBlob = new Blob(audioChunks, { type: "audio/wav" });
+          setRecordedBlob(finalBlob);
+          audioChunks = []; // Limpiar para la siguiente grabación
+        };
         Tone.Transport.scheduleOnce(() => {
           Tone.Transport.stop();
           if (rainSound) {
             rainSound.stop(); // Detén la lluvia al finalizar
           }
         }, `+${duration}`);
+        // Iniciar grabación y reproducción
         drawVisualizer();
+        mediaRecorder.start();
         Tone.Transport.start();
       } catch (error) {
         console.error("Error en playSong:", error);
@@ -322,7 +352,6 @@ export default function Page() {
     };
 
     if (playBtn) playBtn.addEventListener("click", playSong);
-    if (recordBtn) recordBtn.addEventListener("click", startRecording);
   }, []);
 
   return (
@@ -347,7 +376,7 @@ export default function Page() {
                 className="text-sm font-medium mb-1"
                 htmlFor="temperatureSlider"
               >
-                Temperatura (0.8 - 1.5)
+                Temperatura <span className="font-light">(A valores más altos, mayor aleatoriedad)</span>
               </label>
               <input
                 id="temperatureSlider"
@@ -375,7 +404,6 @@ export default function Page() {
                 <option value="60">1 minuto</option>
                 <option value="90">1 minuto 30 segundos</option>
                 <option value="120">2 minutos</option>
-                <option value="180">3 minutos</option>
               </select>
               {/* Botones (parte inferior) */}
               <div className="flex justify-center mt-6 space-x-4">
@@ -386,23 +414,18 @@ export default function Page() {
                   {" "}
                   Generar canción{" "}
                 </button>
-                
-
-
                 {session ? (
-              <button
-              id="recordBtn"
-              className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
-            >
-              {" "}
-              Grabar canción{" "}
-            </button>
-            ) : (
-              <p> </p>
-            )}
+                  <button
+                    id="recordBtn"
+                    onClick={startRecording} // Asocia directamente la función aquí
+                    className="rounded-md bg-gradient-to-r from-[#02514E] to-[#027F7F] px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gradient-to-br"
+                  >
+                    Descargar canción
+                  </button>
+                ) : (
+                  <p> </p>
+                )}
 
-
-                
               </div>
             </div>
 
