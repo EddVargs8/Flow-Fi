@@ -40,6 +40,7 @@ export default function Page() {
   }
 
 
+
   const startRecording = () => {    
     if (!recordedBlob) {
       alert("No hay audio grabado para descargar.");
@@ -50,11 +51,11 @@ export default function Page() {
     const downloadLink = document.createElement("a");
     const uniqueId = Date.now();
     downloadLink.href = audioUrl;
-    downloadLink.download = `generated_song_${uniqueId}.wav`;
+    downloadLink.download = `generated_song_${uniqueId}`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
-    saveSongToDatabase(recordedBlob, `generated_song_${uniqueId}.wav`, duration, session.user.id);
+    saveSongToDatabase(recordedBlob, `generated_song_${uniqueId}`, duration, session.user.id);
   };
 
   useEffect(() => {
