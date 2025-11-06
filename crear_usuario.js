@@ -3,9 +3,9 @@ import prisma from './src/app/utils/prisma.js';
 async function crearUsuario() {
   const nuevoUsuario = await prisma.user.create({
     data: {
-      email: 'eddvargs8@gmail.com',
-      password: 'qwerty123', // Será encriptado automáticamente
-      username: 'eddvargs8',
+      email: '',
+      password: '', // Será encriptado automáticamente
+      username: '',
     },
   });
 
